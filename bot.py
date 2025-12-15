@@ -1,6 +1,5 @@
 import os
 import requests
-
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -16,39 +15,48 @@ from telegram.ext import (
 # ================== ENV ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 SMS_API_KEY = os.environ.get("SMS_ACTIVATE_API_KEY")
+SMS_API_URL = "https://api.sms-activate.ae/stubs/handler_api.php"
 
-# ================== API ==================
-def get_prices():
-    url = "https://api.sms-activate.io/stubs/handler_api.php"
+# ================== API HELPERS ==================
+
+def get_countries():
+    """جلب جميع الدول المتاحة"""
     params = {
         "api_key": SMS_API_KEY,
-        "action": "getPrices"
+        "action": "getCountries"
     }
-    response = requests.get(url, params=params, timeout=20)
-    response.raise_for_status()
-    return response.json()
+    r = requests.get(SMS_API_URL, params=params, timeout=20)
+    r.raise_for_status()
+    return r.json()
 
-# ================== COUNTRIES (مؤقتة) ==================
-COUNTRIES = {
-    "ru": "🇷🇺 روسيا",
-    "in": "🇮🇳 الهند",
-    "id": "🇮🇩 إندونيسيا",
-    "eg": "🇪🇬 مصر",
-    "ua": "🇺🇦 أوكرانيا",
-}
 
-# ================== HANDLERS ==================
+def get_prices_extended(service_code):
+    """جلب الأسعار حسب الخدمة (واتس/تلجرام)"""
+    params = {
+        "api_key": SMS_API_KEY,
+        "action": "getPricesExtended",
+        "service": service_code
+    }
+    r = requests.get(SMS_API_URL, params=params, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+# ================== BOT HANDLERS ==================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 مرحبًا بك في بوت العالمي للأرقام\n\n"
-        "استخدم الأمر /buy لشراء رقم."
+        "👋 مرحبًا بك في *بوت العالمي للأرقام*\n\n"
+        "🧪 الوضع الحالي: تجريبي (عرض فقط)\n\n"
+        "استخدم الأمر /buy للمتابعة.",
+        parse_mode="Markdown"
     )
+
 
 async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("📞 رقم واتساب", callback_data="service_wa"),
-            InlineKeyboardButton("✈️ رقم تلغرام", callback_data="service_tg"),
+            InlineKeyboardButton("📞 واتساب", callback_data="service_wa"),
+            InlineKeyboardButton("✈️ تلجرام", callback_data="service_tg"),
         ]
     ]
     await update.message.reply_text(
@@ -56,61 +64,79 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
 
-    # اختيار الخدمة
-    if data.startswith("service_"):
-        service = data.split("_")[1]  # wa أو tg
-        prices = get_prices()
+    service_map = {
+        "service_wa": "wa",
+        "service_tg": "tg",
+    }
 
-        buttons = []
-        for country_code, country_name in COUNTRIES.items():
-            country_data = prices.get(country_code)
-            if not country_data:
-                continue
+    service_key = service_map.get(query.data)
+    context.user_data["service"] = service_key
 
-            service_data = country_data.get(service)
-            if not service_data:
-                continue
+    prices = get_prices_extended(service_key)
+    countries = get_countries()
 
-            price = service_data.get("cost")
-            if price is None:
-                continue
+    buttons = []
+    row = []
 
-            buttons.append([
-                InlineKeyboardButton(
-                    f"{country_name} — ${price}",
-                    callback_data="buy_disabled"
-                )
-            ])
+    for country_name, info in countries.items():
+        if info.get("visible") != 1:
+            continue
 
-        if not buttons:
-            await query.edit_message_text("❌ لا توجد دول متاحة حاليًا.")
-            return
+        country_id = str(info["id"])
 
-        await query.edit_message_text(
-            "🌍 اختر الدولة (وضع تجريبي):",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
+        if country_id not in prices:
+            continue
+        if service_key not in prices[country_id]:
+            continue
 
-    # زر شراء معطّل
-    elif data == "buy_disabled":
-        await query.answer(
-            "🚧 الشراء غير مفعّل حاليًا (وضع تجريبي)",
-            show_alert=True
-        )
+        price_info = prices[country_id][service_key]
+        cost = price_info.get("cost")
+        count = price_info.get("count")
+
+        text = f"{info['eng']} — ${cost} ({count})"
+        callback = f"demo_{country_id}"
+
+        row.append(InlineKeyboardButton(text, callback_data=callback))
+
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+
+    if row:
+        buttons.append(row)
+
+    buttons.append([
+        InlineKeyboardButton("🚧 الشراء غير مفعّل (تجريبي)", callback_data="disabled")
+    ])
+
+    await query.edit_message_text(
+        text="🌍 الدول المتاحة (السعر — الكمية):",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+
+async def disabled_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer(
+        "🚧 الشراء غير مفعّل حاليًا (وضع تجريبي)",
+        show_alert=True
+    )
 
 # ================== MAIN ==================
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("buy", buy))
-    app.add_handler(CallbackQueryHandler(on_callback))
+    app.add_handler(CallbackQueryHandler(service_selected, pattern="^service_"))
+    app.add_handler(CallbackQueryHandler(disabled_action, pattern="^demo_|^disabled$"))
 
+    print("Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
