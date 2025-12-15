@@ -1,20 +1,31 @@
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 مرحبًا بك في بوت العالمي\n\n"
+        "👋  مرحبًا بك في بوت العالمي للارقام\n\n"
         "استخدم الأمر /buy لشراء رقم."
     )
+
 
 async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("📞 واتساب", callback_data="service_whatsapp"),
-            InlineKeyboardButton("✈️ تلغرام", callback_data="service_telegram"),
+            InlineKeyboardButton("📞 رقم واتس اب", callback_data="service_whatsapp"),
+            InlineKeyboardButton("✈️ رقم تلجرام", callback_data="service_telegram"),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -24,11 +35,40 @@ async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+
+async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    service = query.data  # service_whatsapp or service_telegram
+    context.user_data["service"] = service
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🇷🇺 روسيا", callback_data="country_ru"),
+            InlineKeyboardButton("🇮🇳 الهند", callback_data="country_in"),
+        ],
+        [
+            InlineKeyboardButton("🇮🇩 إندونيسيا", callback_data="country_id"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(
+        text="🌍 اختر الدولة:",
+        reply_markup=reply_markup
+    )
+
+
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("buy", buy))
+    app.add_handler(CallbackQueryHandler(service_selected, pattern="^service_"))
+
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
