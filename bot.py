@@ -69,7 +69,7 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     buttons, row = [], []
 
-    for _, api_info in countries_api.items():
+    for _, api_info in countries.items():
         if api_info.get("visible") != 1:
             continue
 
