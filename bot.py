@@ -3,6 +3,7 @@ import requests
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from countries import COUNTRY_AR
 
 # ================== ENV ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -55,25 +56,44 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    service_map = {"service_wa": "wa", "service_tg": "tg"}
+    service_map = {
+        "service_wa": "wa",
+        "service_tg": "tg"
+    }
     service = service_map.get(query.data)
 
     prices = await get_prices_extended(service)
     countries = await get_countries()
 
-    buttons, row = [], []
+    buttons = []
+    row = []
 
     for _, info in countries.items():
         if info.get("visible") != 1:
             continue
 
-        cid = str(info["id"])
-        if cid not in prices or service not in prices[cid]:
+        country_id = str(info["id"])
+
+        if country_id not in prices:
+            continue
+        if service not in prices[country_id]:
             continue
 
-        p = prices[cid][service]
-        text = f"{info['eng']} — ${p['cost']} ({p['count']})"
-        row.append(InlineKeyboardButton(text, callback_data="demo"))
+        price_info = prices[country_id][service]
+        cost = price_info.get("cost")
+        count = price_info.get("count")
+
+        # 🔹 تعريب اسم الدولة
+        country_en = info.get("eng")
+        country_ar = COUNTRY_AR.get(country_en, country_en)
+
+        text = f"{country_ar} — ${cost} ({count})"
+        row.append(
+            InlineKeyboardButton(
+                text,
+                callback_data=f"demo_{country_id}"
+            )
+        )
 
         if len(row) == 2:
             buttons.append(row)
@@ -82,12 +102,18 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if row:
         buttons.append(row)
 
-    buttons.append([InlineKeyboardButton("🚧 الشراء غير مفعّل (تجريبي)", callback_data="disabled")])
+    buttons.append([
+        InlineKeyboardButton(
+            "🚧 الشراء غير مفعّل حاليًا (وضع تجريبي)",
+            callback_data="disabled"
+        )
+    ])
 
     await query.edit_message_text(
-        "🌍 الدول المتاحة (السعر — الكمية):",
+        text="🌍 الدول المتاحة (السعر — الكمية):",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
+
 
 async def demo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer(
