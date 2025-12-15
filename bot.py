@@ -1,4 +1,18 @@
+import requests
+import json
 import os
+SMS_API_KEY = os.environ.get("SMS_ACTIVATE_API_KEY")
+
+def get_prices():
+    url = "https://api.sms-activate.io/stubs/handler_api.php"
+    params = {
+        "api_key": SMS_API_KEY,
+        "action": "getPrices"
+    }
+
+    response = requests.get(url, params=params, timeout=20)
+    response.raise_for_status()
+    return response.json()
 from telegram import (
     Update,
     InlineKeyboardButton,
