@@ -57,41 +57,34 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # ربط أزرار الخدمة بكود SMS-Activate
     service_map = {
         "service_wa": "wa",
         "service_tg": "tg",
     }
 
     service = service_map.get(query.data)
-    if not service:
-        await query.edit_message_text("❌ خدمة غير معروفة")
-        return
-
     context.user_data["service"] = service
 
-    # جلب الأسعار
     prices = await get_prices_extended(service)
 
     buttons = []
     row = []
 
-    for country_id, country_data in COUNTRIES.items():
+    for country_id, country_info in COUNTRIES.items():
         if country_id not in prices:
             continue
         if service not in prices[country_id]:
             continue
 
-        price_info = prices[country_id][service]
-        cost = price_info.get("cost")
+        price = prices[country_id][service]["cost"]
 
-        country_name = country_data["name"]
-        flag = country_data["flag"]
+        country_name = country_info["name"]
+        flag = country_info["flag"]
 
-        text = f"{flag} {country_name} — ${cost}"
-        callback_data = f"demo_{country_id}"
+        text = f"{flag} {country_name} — ${price}"
+        callback = f"demo_{country_id}"  # ← نص وليس متغير
 
-        row.append(InlineKeyboardButton(text, callback_data=callback_data))
+        row.append(InlineKeyboardButton(text, callback_data=callback))
 
         if len(row) == 2:
             buttons.append(row)
@@ -100,13 +93,12 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if row:
         buttons.append(row)
 
-    # زر توضيحي للوضع التجريبي
     buttons.append([
-        InlineKeyboardButton("🚧 الشراء غير مفعّل (وضع تجريبي)", callback_data="disabled")
+        InlineKeyboardButton("🚧 الشراء غير مفعّل (تجريبي)", callback_data="disabled")
     ])
 
     await query.edit_message_text(
-        text="🌍 الدول المتاحة (السعر):",
+        text="🌍 الدول المتاحة:",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
