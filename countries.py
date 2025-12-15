@@ -1,0 +1,26 @@
+# countries.py
+
+COUNTRY_AR = {
+    "Ukraine": "أوكرانيا",
+    "Kazakhstan": "كازاخستان",
+    "China": "الصين",
+    "Philippines": "الفلبين",
+    "Myanmar": "ميانمار",
+    "Indonesia": "إندونيسيا",
+    "Malaysia": "ماليزيا",
+    "Kenya": "كينيا",
+    "Tanzania": "تنزانيا",
+    "Vietnam": "فيتنام",
+    "Kyrgyzstan": "قيرغيزستان",
+    "Israel": "إسرائيل",
+    "Hong Kong": "هونغ كونغ",
+    "Poland": "بولندا",
+    "United Kingdom": "المملكة المتحدة",
+    "Madagascar": "مدغشقر",
+    "DR Congo": "الكونغو الديمقراطية",
+    "Nigeria": "نيجيريا",
+    "Macao": "ماكاو",
+    "Egypt": "مصر",
+    "India": "الهند",
+    "Ireland": "إيرلندا",
+}
