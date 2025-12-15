@@ -60,38 +60,37 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "service_wa": "wa",
         "service_tg": "tg"
     }
+
     service = service_map.get(query.data)
+    context.user_data["service"] = service
 
     prices = await get_prices_extended(service)
-    countries = await get_countries()
+    countries_api = await get_countries()
 
-    buttons = []
-    row = []
+    buttons, row = [], []
 
-    for _, info in countries.items():
-        if info.get("visible") != 1:
+    for _, api_info in countries_api.items():
+        if api_info.get("visible") != 1:
             continue
 
-        country_id = str(info["id"])
+        cid = str(api_info["id"])
 
-        if country_id not in prices:
+        # 🔒 فقط الدول التي عربتها
+        if cid not in COUNTRIES:
             continue
-        if service not in prices[country_id]:
+
+        if cid not in prices or service not in prices[cid]:
             continue
 
-        price_info = prices[country_id][service]
-        cost = price_info.get("cost")
-        count = price_info.get("count")
+        price = prices[cid][service]["cost"]
+        country = COUNTRIES[cid]
 
-        # 🔹 تعريب اسم الدولة
-        country_en = info.get("eng")
-        country_ar = COUNTRY_AR.get(country_en, country_en)
+        text = f"{country['flag']} {country['name']} — ${price}"
 
-        text = f"{country_ar} — ${cost} ({count})"
         row.append(
             InlineKeyboardButton(
                 text,
-                callback_data=f"demo_{country_id}"
+                callback_data=f"country_{cid}"
             )
         )
 
@@ -103,22 +102,12 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons.append(row)
 
     buttons.append([
-        InlineKeyboardButton(
-            "🚧 الشراء غير مفعّل حاليًا (وضع تجريبي)",
-            callback_data="disabled"
-        )
+        InlineKeyboardButton("🚧 الشراء غير مفعّل (تجريبي)", callback_data="disabled")
     ])
 
     await query.edit_message_text(
-        text="🌍 الدول المتاحة (السعر — الكمية):",
+        "🌍 الدول المتاحة (السعر فقط):",
         reply_markup=InlineKeyboardMarkup(buttons)
-    )
-
-
-async def demo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer(
-        "🚧 هذا عرض تجريبي فقط\nسيتم تفعيل الشراء لاحقًا",
-        show_alert=True
     )
 
 # ================== MAIN ==================
