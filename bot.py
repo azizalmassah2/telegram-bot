@@ -20,7 +20,6 @@ SMS_API_URL = "https://api.sms-activate.ae/stubs/handler_api.php"
 # ================== API HELPERS ==================
 
 def get_countries():
-    """جلب جميع الدول المتاحة"""
     params = {
         "api_key": SMS_API_KEY,
         "action": "getCountries"
@@ -31,7 +30,6 @@ def get_countries():
 
 
 def get_prices_extended(service_code):
-    """جلب الأسعار حسب الخدمة (واتس/تلجرام)"""
     params = {
         "api_key": SMS_API_KEY,
         "action": "getPricesExtended",
@@ -83,7 +81,7 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = []
     row = []
 
-    for country_name, info in countries.items():
+    for _, info in countries.items():
         if info.get("visible") != 1:
             continue
 
@@ -120,9 +118,9 @@ async def service_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def disabled_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def demo_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer(
-        "🚧 الشراء غير مفعّل حاليًا (وضع تجريبي)",
+        "🚧 هذا عرض تجريبي فقط\nسيتم تفعيل الشراء لاحقًا",
         show_alert=True
     )
 
@@ -134,10 +132,11 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("buy", buy))
     app.add_handler(CallbackQueryHandler(service_selected, pattern="^service_"))
-    app.add_handler(CallbackQueryHandler(disabled_action, pattern="^demo_|^disabled$"))
+    app.add_handler(CallbackQueryHandler(demo_action, pattern="^demo_|^disabled$"))
 
     print("Bot is running...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
