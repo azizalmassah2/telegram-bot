@@ -3,7 +3,7 @@ import requests
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-from countries import COUNTRY_AR
+from countries import COUNTRIES
 
 # ================== ENV ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
